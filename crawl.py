@@ -28,6 +28,21 @@ google_license = """
 all_results = {}
 repo = None
 
+def remove_tags(fn):
+    ## this will remove ALL the tags in the yaml
+    with open(fn,"r") as f:
+        lines = f.readlines()
+
+    with open(fn,"w") as f:
+        for line in lines:
+            if not line.startswith("# [") :
+                f.write(line)
+                # continue
+            # if not line.startswith("# [END"):
+                # f.write(line)
+    print("REMOVED THE TAGS at " +fn)
+    return
+
 def generate_region_tag(product, twoup, oneup, fn, snippet):
     # get the specific Kubernetes resource type, if listed. 
     if 'kind' not in snippet:
@@ -96,30 +111,44 @@ def process_file(product, twoup, oneup, fn):
             start = "# [START {}]".format(tag)
             end = "# [END {}]".format(tag)
             output.write(start + "\n")
-            yaml.dump(snippet, output)
+            yaml.dump(snippet, output, sort_keys=False)
             output.write(end + "\n")
             output.write("---\n")
     output.close()
 
 def process_file_shell(product, oneup, fn):
-    with open(fn) as file:
-        contents = file.read()
+    global all_results
 
     tag = generate_shell_tag(product,oneup,fn)
     start = "# [START {}]".format(tag)
     end = "# [END {}]".format(tag)
-    with open(fn,'w') as file:
-        file.write(start + "\n")
-        file.write(contents + "\n")
-        file.write(end)
-    file.close
-    # with open(fn, 'w') as output:
-    
-    #     output.write(start + "\n")
+    insert_start = False
 
-    #     output.write(end + "\n")
-    #     output.write("---\n")
-    # output.close()
+    with open(fn) as f:
+        filIn = f.readlines()
+        for i,line in enumerate(filIn):
+            if line == "# limitations under the License.":
+                insert_start = True
+                break
+        if insert_start:
+            filIn.insert(i, start+ "\n")
+        f.close()
+    
+    if insert_start == False:
+        # if the file has no license, add license, add tags, add existing content, add end tag
+        with open(fn) as file:
+            contents = file.read()
+        with open(fn,'w') as file:
+            file.write(google_license + "\n")
+            file.write(start + "\n")
+            file.write(contents + "\n")
+            file.write(end)
+        file.close()
+    else:
+        with open(fn, 'a') as file:
+            file.write(end)
+        file.close()
+
 
 
 def clone_repo(id_rsa, known_hosts, github_repository, branch, local_path):
@@ -175,13 +204,14 @@ def get_repo():
 
 def log_results():
     global all_results
-    print(all_results)
+    # print(all_results)
     print("✅ success: total resources processed: {}".format(len(all_results.keys())))
 
 if __name__ == "__main__":
 
-    env_file = input("0: env file, or 1:existing clone of the repo locally")
-    if env_file==0:
+    env_file = input("0: env file, or 1:existing clone of the repo local, or 'REMOVE_TAGS' to remove all the tags from sh and yaml: ")
+    
+    if env_file=='0':
         id_rsa = os.environ['ID_RSA']
         if id_rsa == "":
             print("Error: ID_RSA env variable must be set")
@@ -229,7 +259,7 @@ if __name__ == "__main__":
         push_to_repo(local_path, branch)
         log_results()
 
-    else:
+    elif env_file == '1':
         directory, local_path = get_repo()
         # prod_prefix = input("Input the product prefix:")
         prod_prefix = 'servicemesh'
@@ -262,3 +292,18 @@ if __name__ == "__main__":
         branch='yaml_tags'
         push_to_repo(local_path, branch)
         log_results()
+    elif env_file =="REMOVE_TAGS":
+        print("************** REMOVING TAGS")
+        directory, local_path = get_repo()
+        path = Path(local_path)
+        for p in path.rglob("*.yaml"):
+            filename = p.name
+            fullparent = str(p.parent)
+            fn = fullparent +  "/" + filename
+            remove_tags(fn)
+
+        for p in path.rglob("*.yml"):
+            filename = p.name
+            fullparent = str(p.parent)
+            fn = fullparent +  "/" + filename
+            remove_tags(fn)

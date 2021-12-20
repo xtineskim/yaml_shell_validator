@@ -25,6 +25,9 @@ def get_repo():
     print(repo.head.reference)
     return repo, repo_directory
 
+def remove_tags():
+    return True
+
 def check_region_tag(tag,prod_prefix, dir):
     ## checks if an already existing tag is valid 
 
