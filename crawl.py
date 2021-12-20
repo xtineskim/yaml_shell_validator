@@ -39,14 +39,25 @@ def generate_region_tag(product, twoup, oneup, fn, snippet):
     if 'metadata' not in snippet:
         filename = os.path.basename(fn)
         if filename.endswith('.yaml'):
+        # if no metadata name, then format: <product-prefix>_<directory-with-underscores>_<filename-without-extention>_<kind>
             filename = filename[:-5]
-        tag = "{}_{}_{}_{}_{}".format(product, twoup, oneup, resource_type, filename)
+            tag = "{}_{}_{}_{}".format(product, twoup, filename ,resource_type)
+        ## if the file is a shell 
+        elif filename.endswith('.sh'):
+            tag = "{}_{}_{}".format(product, twoup, oneup)
     else: 
         name = snippet['metadata']['name'].lower()
-        tag = "{}_{}_{}_{}_{}".format(product, twoup, oneup, resource_type, name)
+        tag = "{}_{}_{}_{}_{}".format(product, twoup, oneup, resource_type,name)
+
     tag = tag.replace("-", "_")
     return tag
 
+def generate_shell_tag(product, twoup,fn):
+    filename = os.path.basename(fn)
+    filename = filename[:-3]
+    tag = "{}_{}_{}".format(product, twoup, filename )
+    tag = tag.replace("-", "_")
+    return tag
 
 def process_file(product, twoup, oneup, fn):
     if oneup=="templates":
@@ -55,7 +66,7 @@ def process_file(product, twoup, oneup, fn):
     with open(fn) as file:
         # do not process helm charts
         results = {}
-        documents = yaml.load_all(file)
+        documents = yaml.load_all(file, Loader=yaml.FullLoader)
         for snippet in documents:
             if snippet is None:
                 continue
@@ -79,6 +90,7 @@ def process_file(product, twoup, oneup, fn):
     file.close()
     # write new YAML file with google license, START and END
     with open(fn, 'w') as output:
+        
         output.write(google_license + "\n")
         for tag, snippet in results.items():
             start = "# [START {}]".format(tag)
@@ -88,6 +100,27 @@ def process_file(product, twoup, oneup, fn):
             output.write(end + "\n")
             output.write("---\n")
     output.close()
+
+def process_file_shell(product, oneup, fn):
+    with open(fn) as file:
+        contents = file.read()
+
+    tag = generate_shell_tag(product,oneup,fn)
+    start = "# [START {}]".format(tag)
+    end = "# [END {}]".format(tag)
+    with open(fn,'w') as file:
+        file.write(start + "\n")
+        file.write(contents + "\n")
+        file.write(end)
+    file.close
+    # with open(fn, 'w') as output:
+    
+    #     output.write(start + "\n")
+
+    #     output.write(end + "\n")
+    #     output.write("---\n")
+    # output.close()
+
 
 def clone_repo(id_rsa, known_hosts, github_repository, branch, local_path):
     global repo
@@ -123,55 +156,109 @@ def push_to_repo(local_path, branch):
     print(a.stdout.decode('utf-8'))
 
 
+def get_repo():
+    ## get reference to the repo, and create a local_branch named yaml_tags
+    input_link = input('Please input the github repo github link if you do not have it cloned, or the path if its local:')
+    # clone the repo if it doesn't exist already
+    if input_link[:5]=="https":
+        repo_directory = "/"
+        repo = git.clone(input_link)
+        repo.git.checkout('test')
+
+    else:   ## else refer to a local one
+        repo = git.Repo(input_link)
+        repo_directory = input_link
+    yaml_branch = repo.create_head("yaml_tags")
+    repo.head.reference = yaml_branch
+    print(repo.head.reference)
+    return repo, repo_directory
+
 def log_results():
     global all_results
+    print(all_results)
     print("✅ success: total resources processed: {}".format(len(all_results.keys())))
 
-
 if __name__ == "__main__":
-    id_rsa = os.environ['ID_RSA']
-    if id_rsa == "":
-        print("Error: ID_RSA env variable must be set")
-        exit(1)
 
-    known_hosts = os.environ['KNOWN_HOSTS']
-    if known_hosts == "":
-        print("Error: KNOWN_HOSTS env variable must be set")
-        exit(1)
+    env_file = input("0: env file, or 1:existing clone of the repo locally")
+    if env_file==0:
+        id_rsa = os.environ['ID_RSA']
+        if id_rsa == "":
+            print("Error: ID_RSA env variable must be set")
+            exit(1)
 
-    product = os.environ['PRODUCT']
-    if product == "":
-        print("Error: PRODUCT env variable must be set")
-        exit(1)
+        known_hosts = os.environ['KNOWN_HOSTS']
+        if known_hosts == "":
+            print("Error: KNOWN_HOSTS env variable must be set")
+            exit(1)
+
+        product = os.environ['PRODUCT']
+        if product == "":
+            print("Error: PRODUCT env variable must be set")
+            exit(1)
 
 
-    github_repo_name = os.environ['GITHUB_REPOSITORY']
-    if github_repo_name == "":
-        print("Error: GITHUB_REPOSITORY env variable must be set.")
-        exit(1)
+        github_repo_name = os.environ['GITHUB_REPOSITORY']
+        if github_repo_name == "":
+            print("Error: GITHUB_REPOSITORY env variable must be set.")
+            exit(1)
 
-    branch = os.environ['GITHUB_REF']
-    if branch == "":
-        print("Error: GITHUB_REF env variable must be set.")
-        exit(1)
+        branch = os.environ['GITHUB_REF']
+        if branch == "":
+            print("Error: GITHUB_REF env variable must be set.")
+            exit(1)
 
-    # clone repo
-    local_path = "/tmp/{}".format(github_repo_name)
-    shutil.rmtree(local_path, ignore_errors=True)
-    clone_repo(id_rsa, known_hosts, github_repo_name, branch, local_path)
+        # clone repo
+        local_path = "/tmp/{}".format(github_repo_name)
+        shutil.rmtree(local_path, ignore_errors=True)
+        clone_repo(id_rsa, known_hosts, github_repo_name, branch, local_path)
 
-    # prepare to process snippets
-    path = Path(local_path)
+        # prepare to process snippets
+        path = Path(local_path)
 
-    for p in path.rglob("*.yaml"):
-        filename = p.name
-        fullparent = str(p.parent)
-        fn = fullparent +  "/" + filename
-        print("processing: {}".format(fn))
-        spl = fullparent.split("/")
-        oneup = spl[-1]
-        twoup = spl[-2]
-        process_file(product, twoup, oneup, fn)
+        for p in path.rglob("*.yaml"):
+            filename = p.name
+            fullparent = str(p.parent)
+            fn = fullparent +  "/" + filename
+            print("processing: {}".format(fn))
+            spl = fullparent.split("/")
+            oneup = spl[-1]
+            twoup = spl[-2]
+            process_file(product, twoup, oneup, fn)
 
-    push_to_repo(local_path, branch)
-    log_results()
+        push_to_repo(local_path, branch)
+        log_results()
+
+    else:
+        directory, local_path = get_repo()
+        # prod_prefix = input("Input the product prefix:")
+        prod_prefix = 'servicemesh'
+
+        path = Path(local_path)
+        print("PROCESSING YAML")
+        for p in path.rglob("*.yaml"):
+            filename = p.name
+            fullparent = str(p.parent)
+            fn = fullparent +  "/" + filename
+            print("processing: {}".format(fn))
+            spl = fullparent.split("/")
+            oneup = spl[-1]
+            twoup = spl[-2]
+            process_file(prod_prefix, twoup, oneup, fn)
+
+        # capturing shell scripts to tag
+
+        print("PROCESSING SHELL")
+        for p in path.rglob("*.sh"):
+            filename = p.name
+            fullparent = str(p.parent)
+            fn = fullparent +  "/" + filename
+            print("processing: {}".format(fn))
+            spl = fullparent.split("/")
+            oneup = spl[-1]
+            twoup = spl[-2]
+            print("===================",twoup,oneup)
+            process_file_shell(prod_prefix, oneup,fn)
+        branch='yaml_tags'
+        push_to_repo(local_path, branch)
+        log_results()
