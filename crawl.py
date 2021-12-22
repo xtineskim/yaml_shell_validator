@@ -24,7 +24,7 @@ google_license = """
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-
+google_license_set = set(google_license.splitlines())
 all_results = {}
 repo = None
 
@@ -49,21 +49,27 @@ def generate_region_tag(product, twoup, oneup, fn, snippet):
         resource_type = "yaml"
     else:
         resource_type = snippet['kind'].lower()
-
+    filename = os.path.basename(fn)
+    print(twoup, oneup)
     # have the snippet name match the k8s resource name - otherwise, match to filename 
     if 'metadata' not in snippet:
-        filename = os.path.basename(fn)
         if filename.endswith('.yaml'):
-        # if no metadata name, then format: <product-prefix>_<directory-with-underscores>_<filename-without-extention>_<kind>
+        # if no metadata name, then format: <product-prefix>_<oneup>_<filename-without-extention>_<kind>
             filename = filename[:-5]
-            tag = "{}_{}_{}_{}".format(product, twoup, filename ,resource_type)
+            tag = "{}_{}_{}_{}".format(product, oneup, filename ,resource_type)
         ## if the file is a shell 
-        elif filename.endswith('.sh'):
-            tag = "{}_{}_{}".format(product, twoup, oneup)
+        elif filename.endswith('.yml'):
+            filename = filename[:-4]
+            tag = "{}_{}_{}_{}".format(product, oneup, filename ,resource_type)
     else: 
-        name = snippet['metadata']['name'].lower()
-        tag = "{}_{}_{}_{}_{}".format(product, twoup, oneup, resource_type,name)
-
+        if filename.endswith('.yaml'):
+            filename = filename[:-5]
+            metadataName = snippet['metadata']['name'].lower()
+            tag = "{}_{}_{}_{}_{}".format(product, oneup, filename, resource_type,metadataName)
+        elif filename.endswith('.yml'):
+            filename = filename[:-4]
+            metadataName = snippet['metadata']['name'].lower()
+            tag = "{}_{}_{}_{}_{}".format(product, oneup, filename ,resource_type,metadataName)
     tag = tag.replace("-", "_")
     return tag
 
@@ -78,9 +84,50 @@ def process_file(product, twoup, oneup, fn):
     if oneup=="templates":
         return 
     global all_results
+
+    yaml_comments = {}
     with open(fn) as file:
         # do not process helm charts
         results = {}
+        original_contents = file.readlines()
+        # print(original_contents[:14], google_license.splitlines())
+        # stripped = [s.strip() for s in original_contents[:14]]
+        # print(stripped==google_license.splitlines())
+
+        if len(original_contents)<14 or original_contents[0].find('apiVersion')>=0:
+            start = 0
+            end = 0
+        else:
+            # start and end of the license if present
+            start = 0
+            end = 12
+            print(original_contents[end].strip()!= "# limitations under the License.")
+            if original_contents[end].strip()!= "# limitations under the License.":
+                start = 1
+                end = 13
+
+        ## this is so janky, but the idea is to find the comments (not including license), save comment and line location, add the length of the google license and hope it works
+        yaml_sections_count = 0
+        for i,line in enumerate(original_contents[end+1:]):
+            check_line = line.lstrip() # remove whitespace from left of the string
+            if  len(check_line)>1 and check_line[0]=='#':
+
+                print(i, end, yaml_sections_count, line)
+                if end>0:
+                    yaml_comments[i + 15 + (yaml_sections_count*3)] = line
+                else:
+                    yaml_comments[27 + 15 + (yaml_sections_count*3)] = line
+
+            if line.find("kind:")>=0 and end == 0:
+                yaml_sections_count+=1
+                continue
+            if line.find("kind:")>=0 and i>17: # skip over the first one
+                print(line.find("kind:"))
+                yaml_sections_count += 1
+
+            
+        print(yaml_comments)
+        file.seek(0)
         documents = yaml.load_all(file, Loader=yaml.FullLoader)
         for snippet in documents:
             if snippet is None:
@@ -103,9 +150,9 @@ def process_file(product, twoup, oneup, fn):
                 all_results[tag] = snippet
 
     file.close()
+
     # write new YAML file with google license, START and END
-    with open(fn, 'w') as output:
-        
+    with open(fn, 'w+') as output:
         output.write(google_license + "\n")
         for tag, snippet in results.items():
             start = "# [START {}]".format(tag)
@@ -115,6 +162,22 @@ def process_file(product, twoup, oneup, fn):
             output.write(end + "\n")
             output.write("---\n")
     output.close()
+    ## looping through the new file, and adding comments back in 
+    # safely read then write to the file
+    with open(fn,'r') as no_comments:
+        buf = no_comments.readlines()
+    no_comments.close() 
+
+    # print(buf)
+    # print(yaml_comments)
+
+    for i, line in yaml_comments.items():
+        buf.insert(i,line)
+
+    with open(fn,'w') as outfile:
+        buf = "".join(buf)
+        outfile.write(buf)
+    outfile.close()
 
 def process_file_shell(product, oneup, fn):
     global all_results
@@ -197,7 +260,7 @@ def get_repo():
     else:   ## else refer to a local one
         repo = git.Repo(input_link)
         repo_directory = input_link
-    yaml_branch = repo.create_head("yaml_tags")
+    yaml_branch = repo.create_head("yaml_tags_comments")
     repo.head.reference = yaml_branch
     print(repo.head.reference)
     return repo, repo_directory
@@ -266,7 +329,28 @@ if __name__ == "__main__":
 
         path = Path(local_path)
         print("PROCESSING YAML")
+        # fn = '/Users/christineskim/Documents/repos/anthos-service-mesh-samples/docs/security/update-authentication-policies/security_auth_policy.yaml'
+        # oneup = 'update-authentication-policies'
+        # twoup = 'security'
+        # fn = '/Users/christineskim/Documents/repos/anthos-service-mesh-samples/demos/bank-of-anthos-asm-manifests/demo-manifests/frontend-custom-deployment.yml'
+        # oneup = 'demo-manifests'
+        # twoup = 'bank-of-anthos-asm-manifests'
+        # fn = '/Users/christineskim/Documents/repos/anthos-service-mesh-samples/docs/mtls-egress-ingress/server/mysql-server/mysql.yaml'
+        # oneup = 'mysql-server'
+        # twoup = 'server'
+        # process_file(prod_prefix, twoup, oneup, fn)
         for p in path.rglob("*.yaml"):
+            filename = p.name
+            fullparent = str(p.parent)
+            fn = fullparent +  "/" + filename
+            print("processing: {}".format(fn))
+            spl = fullparent.split("/")
+            oneup = spl[-1]
+            twoup = spl[-2]
+            print(twoup,oneup)
+            process_file(prod_prefix, twoup, oneup, fn)
+            
+        for p in path.rglob("*.yml"):
             filename = p.name
             fullparent = str(p.parent)
             fn = fullparent +  "/" + filename
@@ -290,7 +374,7 @@ if __name__ == "__main__":
             print("===================",twoup,oneup)
             process_file_shell(prod_prefix, oneup,fn)
         branch='yaml_tags'
-        push_to_repo(local_path, branch)
+        # push_to_repo(local_path, branch)
         log_results()
     elif env_file =="REMOVE_TAGS":
         print("************** REMOVING TAGS")
