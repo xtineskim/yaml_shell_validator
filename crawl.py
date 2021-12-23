@@ -56,11 +56,11 @@ def generate_region_tag(product, twoup, oneup, fn, snippet):
         if filename.endswith('.yaml'):
         # if no metadata name, then format: <product-prefix>_<oneup>_<filename-without-extention>_<kind>
             filename = filename[:-5]
-            tag = "{}_{}_{}_{}".format(product, oneup, filename ,resource_type)
+            tag = "{}_{}_{}_{}_{}".format(product, twoup,oneup, filename ,resource_type)
         ## if the file is a shell 
         elif filename.endswith('.yml'):
             filename = filename[:-4]
-            tag = "{}_{}_{}_{}".format(product, oneup, filename ,resource_type)
+            tag = "{}_{}_{}_{}_{}".format(product, twoup,oneup, filename ,resource_type)
     else: 
         if filename.endswith('.yaml'):
             filename = filename[:-5]
@@ -101,7 +101,7 @@ def process_file(product, twoup, oneup, fn):
             # start and end of the license if present
             start = 0
             end = 12
-            print(original_contents[end].strip()!= "# limitations under the License.")
+            # print(original_contents[end].strip()!= "# limitations under the License.")
             if original_contents[end].strip()!= "# limitations under the License.":
                 start = 1
                 end = 13
@@ -112,7 +112,7 @@ def process_file(product, twoup, oneup, fn):
             check_line = line.lstrip() # remove whitespace from left of the string
             if  len(check_line)>1 and check_line[0]=='#':
 
-                print(i, end, yaml_sections_count, line)
+                # print(i, end, yaml_sections_count, line)
                 if end>0:
                     yaml_comments[i + 15 + (yaml_sections_count*3)] = line
                 else:
@@ -325,7 +325,7 @@ if __name__ == "__main__":
     elif env_file == '1':
         directory, local_path = get_repo()
         # prod_prefix = input("Input the product prefix:")
-        prod_prefix = 'servicemesh'
+        prod_prefix = 'anthosconfig'
 
         path = Path(local_path)
         print("PROCESSING YAML")
@@ -347,7 +347,7 @@ if __name__ == "__main__":
             spl = fullparent.split("/")
             oneup = spl[-1]
             twoup = spl[-2]
-            print(twoup,oneup)
+            # print(twoup,oneup)
             process_file(prod_prefix, twoup, oneup, fn)
             
         for p in path.rglob("*.yml"):
@@ -371,7 +371,7 @@ if __name__ == "__main__":
             spl = fullparent.split("/")
             oneup = spl[-1]
             twoup = spl[-2]
-            print("===================",twoup,oneup)
+            # print("===================",twoup,oneup)
             process_file_shell(prod_prefix, oneup,fn)
         branch='yaml_tags'
         # push_to_repo(local_path, branch)
