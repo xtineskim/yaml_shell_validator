@@ -8,6 +8,11 @@ import subprocess
 
 from time import gmtime, strftime
 
+## anthos-service-mesh-samples 
+#        # if no metadata name, then format: <product-prefix>_<oneup>_<filename-without-extention>_<kind>
+## anthos config management
+#       
+
 
 google_license = """
 # Copyright 2021 Google LLC
