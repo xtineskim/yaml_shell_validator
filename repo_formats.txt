@@ -1,0 +1,6 @@
+## anthos service mesh samples
+anthos-service-mesh-samples_metadata=<product-prefix>_<directory-with-underscores>_<filename-without-extension>_<kind>_<metadata.name>
+anthos-service-mesh-samples_no_metadata=<product-prefix>_<oneup>_<filename-without-extention>_<kind>
+
+## anthos config management
+#       
