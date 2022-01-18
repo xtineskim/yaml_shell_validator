@@ -15,7 +15,7 @@ from time import gmtime, strftime
 
 
 google_license = """
-# Copyright 2021 Google LLC
+# Copyright 2022 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@ all_results = {}
 repo = None
 
 def remove_tags(fn):
+    count_remove_tags = 0
     ## this will remove ALL the tags in the yaml
     with open(fn,"r") as f:
         lines = f.readlines()
@@ -42,10 +43,13 @@ def remove_tags(fn):
         for line in lines:
             if not line.startswith("# [") :
                 f.write(line)
-                # continue
+                continue
+            else:
+                count_remove_tags += 1
             # if not line.startswith("# [END"):
                 # f.write(line)
     print("REMOVED THE TAGS at " +fn)
+    print("REMOVED "+ count_remove_tags//2 + "TAGS")
     return
 
 def generate_region_tag(product, twoup, oneup, fn, snippet):
@@ -330,7 +334,7 @@ if __name__ == "__main__":
     elif env_file == '1':
         directory, local_path = get_repo()
         # prod_prefix = input("Input the product prefix:")
-        prod_prefix = 'anthosconfig'
+        prod_prefix = 'gke'
 
         path = Path(local_path)
         print("PROCESSING YAML")
@@ -345,15 +349,22 @@ if __name__ == "__main__":
         # twoup = 'server'
         # process_file(prod_prefix, twoup, oneup, fn)
         for p in path.rglob("*.yaml"):
-            filename = p.name
-            fullparent = str(p.parent)
-            fn = fullparent +  "/" + filename
-            print("processing: {}".format(fn))
-            spl = fullparent.split("/")
-            oneup = spl[-1]
-            twoup = spl[-2]
-            # print(twoup,oneup)
-            process_file(prod_prefix, twoup, oneup, fn)
+            tempFile = open(p)
+            if 'kind:' in tempFile.read():
+                filename = p.name
+                fullparent = str(p.parent)
+                fn = fullparent +  "/" + filename
+                print("processing: {}".format(fn))
+                spl = fullparent.split("/")
+                oneup = spl[-1]
+                twoup = spl[-2]
+                if twoup=="repos" or oneup == "repos": ## if the yaml file is in the root of the repo
+                    oneup = ""
+                    twoup = ""
+
+                if oneup=="release-cluster":
+                    continue
+                process_file(prod_prefix, twoup, oneup, fn)
             
         for p in path.rglob("*.yml"):
             filename = p.name
