@@ -13,7 +13,6 @@ from time import gmtime, strftime
 ## anthos config management
 #       
 
-
 google_license = """
 # Copyright 2022 Google LLC
 #
