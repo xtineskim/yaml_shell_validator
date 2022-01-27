@@ -89,7 +89,7 @@ def generate_shell_tag(product, twoup,fn):
     return tag
 
 def process_file(product, twoup, oneup, fn):
-    if oneup=="templates":
+    if (oneup=="templates") or (oneup==".github") or (twoup==".github"):
         return 
     global all_results
 
@@ -188,6 +188,8 @@ def process_file(product, twoup, oneup, fn):
     outfile.close()
 
 def process_file_shell(product, oneup, fn):
+    if (oneup=="templates") or (oneup==".github") or (twoup==".github"):
+        return 
     global all_results
 
     tag = generate_shell_tag(product,oneup,fn)
@@ -337,16 +339,7 @@ if __name__ == "__main__":
 
         path = Path(local_path)
         print("PROCESSING YAML")
-        # fn = '/Users/christineskim/Documents/repos/anthos-service-mesh-samples/docs/security/update-authentication-policies/security_auth_policy.yaml'
-        # oneup = 'update-authentication-policies'
-        # twoup = 'security'
-        # fn = '/Users/christineskim/Documents/repos/anthos-service-mesh-samples/demos/bank-of-anthos-asm-manifests/demo-manifests/frontend-custom-deployment.yml'
-        # oneup = 'demo-manifests'
-        # twoup = 'bank-of-anthos-asm-manifests'
-        # fn = '/Users/christineskim/Documents/repos/anthos-service-mesh-samples/docs/mtls-egress-ingress/server/mysql-server/mysql.yaml'
-        # oneup = 'mysql-server'
-        # twoup = 'server'
-        # process_file(prod_prefix, twoup, oneup, fn)
+
         for p in path.rglob("*.yaml"):
             tempFile = open(p)
             if 'kind:' in tempFile.read():
