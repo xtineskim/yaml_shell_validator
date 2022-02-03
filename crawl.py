@@ -187,7 +187,7 @@ def process_file(product, twoup, oneup, fn):
         outfile.write(buf)
     outfile.close()
 
-def process_file_shell(product, oneup, fn):
+def process_file_shell(product, oneup, twoup, fn):
     if (oneup=="templates") or (oneup==".github") or (twoup==".github"):
         return 
     global all_results
@@ -270,7 +270,7 @@ def get_repo():
     else:   ## else refer to a local one
         repo = git.Repo(input_link)
         repo_directory = input_link
-    yaml_branch = repo.create_head("yaml_tags_comments")
+    yaml_branch = repo.create_head("drift_region_tags")
     repo.head.reference = yaml_branch
     print(repo.head.reference)
     return repo, repo_directory
@@ -351,9 +351,9 @@ if __name__ == "__main__":
                 oneup = spl[-1]
                 twoup = spl[-2]
                 if twoup=="repos" or oneup == "repos": ## if the yaml file is in the root of the repo
-                    oneup = ""
                     twoup = ""
-
+                if filename=="skaffold":
+                    continue
                 if oneup=="release-cluster":
                     continue
                 process_file(prod_prefix, twoup, oneup, fn)
@@ -380,7 +380,7 @@ if __name__ == "__main__":
             oneup = spl[-1]
             twoup = spl[-2]
             # print("===================",twoup,oneup)
-            process_file_shell(prod_prefix, oneup,fn)
+            process_file_shell(prod_prefix, oneup, twoup, fn)
         branch='yaml_tags'
         # push_to_repo(local_path, branch)
         log_results()
