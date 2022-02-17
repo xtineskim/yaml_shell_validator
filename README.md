@@ -1,3 +1,4 @@
+This has been pulled and edited from askmeegs@ https://github.com/askmeegs/yaml-region-tag-generator!
 # yaml-region-tag-generator
 
 
@@ -8,3 +9,4 @@ docker run -e ID_RSA=$ssh_key -e KNOWN_HOSTS=$known_hosts -e PRODUCT="istio" \
  -e GITHUB_REPOSITORY="askmeegs/istio-samples" -e GITHUB_REF="saturday" \
  gcr.io/megandemo/yamltag:latest
 ```
+
