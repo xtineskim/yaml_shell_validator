@@ -78,7 +78,7 @@ def generate_region_tag(product, twoup, oneup, fn, snippet):
             filename = filename[:-4]
             metadataName = snippet['metadata']['name'].lower()
             tag = "{}_{}_{}_{}_{}".format(product, oneup, filename ,resource_type,metadataName)
-    tag = tag.replace("-", "_")
+    tag = tag.replace("-", "_").replace(".","_")
     return tag
 
 def generate_shell_tag(product, twoup,fn):
@@ -89,12 +89,21 @@ def generate_shell_tag(product, twoup,fn):
     return tag
 
 def process_file(product, twoup, oneup, fn):
-    if (oneup=="templates") or (oneup==".github") or (twoup==".github"):
+    if (oneup=="templates") or (oneup==".github") or (twoup==".github") or ((oneup=="kubernetes-manifests") and (twoup=="bank-of-anthos")) or ((oneup=="istio-manifests") and (twoup=="bank-of-anthos")):
         return 
     global all_results
 
+    # check if there are an existing region tag, then don't touch them 
+    with open(fn) as file:
+        if '# [START' in file.read():
+            return
+    file.close()
+
+    # with open(fn, 'r').read().find('# [START '):
+
     yaml_comments = {}
     with open(fn) as file:
+
         # do not process helm charts
         results = {}
         original_contents = file.readlines()
@@ -130,11 +139,11 @@ def process_file(product, twoup, oneup, fn):
                 yaml_sections_count+=1
                 continue
             if line.find("kind:")>=0 and i>17: # skip over the first one
-                print(line.find("kind:"))
+                # print(line.find("kind:"))
                 yaml_sections_count += 1
 
             
-        print(yaml_comments)
+        # print(yaml_comments)
         file.seek(0)
         documents = yaml.load_all(file, Loader=yaml.FullLoader)
         for snippet in documents:
@@ -175,9 +184,6 @@ def process_file(product, twoup, oneup, fn):
     with open(fn,'r') as no_comments:
         buf = no_comments.readlines()
     no_comments.close() 
-
-    # print(buf)
-    # print(yaml_comments)
 
     for i, line in yaml_comments.items():
         buf.insert(i,line)
@@ -277,13 +283,12 @@ def get_repo():
 
 def log_results():
     global all_results
-    # print(all_results)
     print("✅ success: total resources processed: {}".format(len(all_results.keys())))
 
 if __name__ == "__main__":
 
     env_file = input("0: env file, or 1:existing clone of the repo local, or 'REMOVE_TAGS' to remove all the tags from sh and yaml: ")
-    
+
     if env_file=='0':
         id_rsa = os.environ['ID_RSA']
         if id_rsa == "":
@@ -335,38 +340,38 @@ if __name__ == "__main__":
     elif env_file == '1':
         directory, local_path = get_repo()
         # prod_prefix = input("Input the product prefix:")
-        prod_prefix = 'gke'
+        prod_prefix = 'anthosconfig'
 
         path = Path(local_path)
         print("PROCESSING YAML")
 
-        for p in path.rglob("*.yaml"):
-            tempFile = open(p)
-            if 'kind:' in tempFile.read():
-                filename = p.name
-                fullparent = str(p.parent)
-                fn = fullparent +  "/" + filename
-                print("processing: {}".format(fn))
-                spl = fullparent.split("/")
-                oneup = spl[-1]
-                twoup = spl[-2]
-                if twoup=="repos" or oneup == "repos": ## if the yaml file is in the root of the repo
-                    twoup = ""
-                if filename=="skaffold":
-                    continue
-                if oneup=="release-cluster":
-                    continue
-                process_file(prod_prefix, twoup, oneup, fn)
+        # for p in path.rglob("*.yaml"):
+        #     tempFile = open(p)
+        #     if 'kind:' in tempFile.read():
+        #         filename = p.name
+        #         fullparent = str(p.parent)
+        #         fn = fullparent +  "/" + filename
+        #         print("processing: {}".format(fn))
+        #         spl = fullparent.split("/")
+        #         oneup = spl[-1]
+        #         twoup = spl[-2]
+        #         if twoup=="repos" or oneup == "repos": ## if the yaml file is in the root of the repo
+        #             twoup = ""
+        #         if filename=="skaffold":
+        #             continue
+        #         if oneup=="release-cluster":
+        #             continue
+        #         process_file(prod_prefix, twoup, oneup, fn)
             
-        for p in path.rglob("*.yml"):
-            filename = p.name
-            fullparent = str(p.parent)
-            fn = fullparent +  "/" + filename
-            print("processing: {}".format(fn))
-            spl = fullparent.split("/")
-            oneup = spl[-1]
-            twoup = spl[-2]
-            process_file(prod_prefix, twoup, oneup, fn)
+        # for p in path.rglob("*.yml"):
+        #     filename = p.name
+        #     fullparent = str(p.parent)
+        #     fn = fullparent +  "/" + filename
+        #     print("processing: {}".format(fn))
+        #     spl = fullparent.split("/")
+        #     oneup = spl[-1]
+        #     twoup = spl[-2]
+        #     process_file(prod_prefix, twoup, oneup, fn)
 
         # capturing shell scripts to tag
 
@@ -381,7 +386,7 @@ if __name__ == "__main__":
             twoup = spl[-2]
             # print("===================",twoup,oneup)
             process_file_shell(prod_prefix, oneup, twoup, fn)
-        branch='yaml_tags'
+
         # push_to_repo(local_path, branch)
         log_results()
     elif env_file =="REMOVE_TAGS":
