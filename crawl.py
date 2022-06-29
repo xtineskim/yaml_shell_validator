@@ -198,6 +198,12 @@ def process_file_shell(product, oneup, twoup, fn):
         return 
     global all_results
 
+    # check if there are an existing region tag, then don't touch them 
+    with open(fn) as file:
+        if '# [START' in file.read():
+            return
+    file.close()
+
     tag = generate_shell_tag(product,oneup,fn)
     start = "# [START {}]".format(tag)
     end = "# [END {}]".format(tag)
@@ -345,23 +351,23 @@ if __name__ == "__main__":
         path = Path(local_path)
         print("PROCESSING YAML")
 
-        # for p in path.rglob("*.yaml"):
-        #     tempFile = open(p)
-        #     if 'kind:' in tempFile.read():
-        #         filename = p.name
-        #         fullparent = str(p.parent)
-        #         fn = fullparent +  "/" + filename
-        #         print("processing: {}".format(fn))
-        #         spl = fullparent.split("/")
-        #         oneup = spl[-1]
-        #         twoup = spl[-2]
-        #         if twoup=="repos" or oneup == "repos": ## if the yaml file is in the root of the repo
-        #             twoup = ""
-        #         if filename=="skaffold":
-        #             continue
-        #         if oneup=="release-cluster":
-        #             continue
-        #         process_file(prod_prefix, twoup, oneup, fn)
+        for p in path.rglob("*.yaml"):
+            tempFile = open(p)
+            if 'kind:' in tempFile.read():
+                filename = p.name
+                fullparent = str(p.parent)
+                fn = fullparent +  "/" + filename
+                print("processing: {}".format(fn))
+                spl = fullparent.split("/")
+                oneup = spl[-1]
+                twoup = spl[-2]
+                if twoup=="repos" or oneup == "repos": ## if the yaml file is in the root of the repo
+                    twoup = ""
+                if filename=="skaffold":
+                    continue
+                if oneup=="release-cluster":
+                    continue
+                process_file(prod_prefix, twoup, oneup, fn)
             
         # for p in path.rglob("*.yml"):
         #     filename = p.name
