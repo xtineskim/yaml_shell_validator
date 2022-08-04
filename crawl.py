@@ -62,7 +62,7 @@ def generate_region_tag(product, twoup, oneup, fn, snippet):
     # have the snippet name match the k8s resource name - otherwise, match to filename 
     if 'metadata' not in snippet:
         if filename.endswith('.yaml'):
-        # if no metadata name, then format: <product-prefix>_<oneup>_<filename-without-extention>_<kind>
+        # if no metadata name, then format: <product-prefix>_<twoup>_<oneup>_<filename-without-extention>_<kind>
             filename = filename[:-5]
             tag = "{}_{}_{}_{}_{}".format(product, twoup,oneup, filename ,resource_type)
         ## if the file is a shell 
